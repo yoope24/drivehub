@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DriveHub - Google Drive & Workspace Manager</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Mobile Sidebar Backdrop -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <div class="app-container">
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar" id="appSidebar">
+      <!-- Sidebar Header / Brand -->
+      <div class="sidebar-header">
+        <a href="#" class="brand-badge" id="brandHomeLink">
+          <div class="brand-icon">
+            <i class="bi bi-hdd-network-fill"></i>
+          </div>
+          <div>
+            <h1 class="brand-title">DriveHub</h1>
+            <div class="brand-subtitle">Cloud Workspace</div>
+          </div>
+        </a>
+        <button class="btn btn-sm btn-outline-light d-lg-none" id="closeSidebarBtn">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <!-- Sidebar Body -->
+      <div class="sidebar-body">
+        <!-- Navigation Section: Overview -->
+        <div class="sidebar-section-title">Navigation</div>
+        <ul class="sidebar-nav">
+          <li class="sidebar-item">
+            <a class="sidebar-link active" id="navAllItems" data-folder-id="all">
+              <span class="icon-box" style="background-color: rgba(59, 130, 246, 0.2); color: #60a5fa;">
+                <i class="bi bi-grid-fill"></i>
+              </span>
+              <span class="link-text">All Files & Links</span>
+              <span class="badge-count" id="allCountBadge">0</span>
+            </a>
+          </li>
+          <li class="sidebar-item">
+            <a class="sidebar-link" id="navStarred" data-folder-id="starred">
+              <span class="icon-box" style="background-color: rgba(234, 179, 8, 0.2); color: #facc15;">
+                <i class="bi bi-star-fill"></i>
+              </span>
+              <span class="link-text">Starred Links</span>
+              <span class="badge-count" id="starredCountBadge">0</span>
+            </a>
+          </li>
+          <!-- Admin User Management in Sidebar -->
+          <li class="sidebar-item admin-only-ui d-none">
+            <a class="sidebar-link" id="navUsers" onclick="openManageUsersModal()">
+              <span class="icon-box" style="background-color: rgba(168, 85, 247, 0.2); color: #c084fc;">
+                <i class="bi bi-people-fill"></i>
+              </span>
+              <span class="link-text">User Management</span>
+            </a>
+          </li>
+        </ul>
+
+        <!-- Dynamic Folders Section -->
+        <div class="sidebar-section-title">
+          <span>Folders & Pages</span>
+          <!-- Admin Only Add Folder Button -->
+          <button class="btn btn-sm p-0 text-white admin-only-ui d-none" id="sidebarAddFolderBtn" title="Create New Folder">
+            <i class="bi bi-plus-circle-fill text-info fs-6"></i>
+          </button>
+        </div>
+
+        <ul class="sidebar-nav" id="foldersNavList">
+          <!-- Dynamic Folder Items will be rendered here by JavaScript -->
+          <li class="text-center py-3 text-muted small">
+            <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+            <div class="mt-1">Loading folders...</div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Sidebar Footer / Current User Info -->
+      <div class="sidebar-footer">
+        <div class="user-status-card">
+          <div class="user-avatar-badge" id="userAvatar">A</div>
+          <div class="flex-grow-1 overflow-hidden">
+            <div class="fw-bold text-truncate text-white small" id="userFullName">Administrator</div>
+            <div class="d-flex align-items-center gap-1">
+              <span class="badge" id="userRoleBadge" style="background-color: #3b82f6; font-size: 0.68rem;">ADMIN</span>
+              <span class="text-muted text-truncate" style="font-size: 0.72rem;" id="userUsername">@admin</span>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline-danger p-1 text-light border-0" id="logoutBtn" title="Sign Out of DriveHub">
+            <i class="bi bi-box-arrow-right fs-6"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT WRAPPER -->
+    <main class="main-wrapper">
+      <!-- TOP NAVBAR -->
+      <header class="top-navbar">
+        <div class="d-flex align-items-center gap-3">
+          <!-- Mobile Sidebar Toggle -->
+          <button class="btn btn-light d-lg-none border" id="toggleSidebarBtn">
+            <i class="bi bi-list fs-5"></i>
+          </button>
+
+          <!-- Search Bar -->
+          <div class="search-container">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="search-input" id="globalSearchInput" placeholder="Search Drive folders, documents, tags...">
+          </div>
+        </div>
+
+        <!-- Top Right Actions -->
+        <div class="d-flex align-items-center gap-2">
+          <!-- Admin Quick Action Buttons -->
+          <div class="admin-only-ui d-none d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1 fw-semibold" id="topManageUsersBtn" onclick="openManageUsersModal()">
+              <i class="bi bi-people-fill text-primary"></i>
+              <span class="d-none d-sm-inline">Manage Users</span>
+            </button>
+            <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1 fw-semibold" id="topAddFolderBtn">
+              <i class="bi bi-folder-plus"></i>
+              <span class="d-none d-sm-inline">New Folder</span>
+            </button>
+            <button class="btn btn-primary btn-sm d-flex align-items-center gap-1 fw-semibold shadow-sm" id="topAddCardBtn" style="background: #4f46e5; border-color: #4f46e5;">
+              <i class="bi bi-plus-lg"></i>
+              <span class="d-none d-sm-inline">Add Drive Card</span>
+            </button>
+          </div>
+
+          <!-- User Profile & Logout Dropdown -->
+          <div class="dropdown ms-1">
+            <button class="btn btn-light btn-sm d-flex align-items-center gap-2 border rounded-pill px-2 py-1 shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="topUserDropdownBtn">
+              <div class="user-avatar-badge" style="width: 30px; height: 30px; font-size: 0.8rem;" id="topUserAvatar">A</div>
+              <span class="small fw-semibold text-dark d-none d-md-inline" id="topUserName">Administrator</span>
+              <i class="bi bi-chevron-down small text-muted"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 py-2" style="min-width: 220px; border-radius: 12px;">
+              <li class="px-3 py-2 border-bottom">
+                <div class="fw-bold text-dark text-truncate" id="menuUserFullName">Administrator</div>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                  <span class="badge" id="menuUserRoleBadge" style="background: #4f46e5; font-size: 0.68rem;">ADMIN</span>
+                  <span class="text-muted small text-truncate" id="menuUserUsername">@admin</span>
+                </div>
+              </li>
+              <li class="admin-only-ui d-none mt-1">
+                <a class="dropdown-item py-2 small" href="#" onclick="openManageUsersModal(); return false;">
+                  <i class="bi bi-people-fill text-primary me-2"></i> Manage Users & Passwords
+                </a>
+              </li>
+              <li><hr class="dropdown-divider my-1"></li>
+              <li>
+                <a class="dropdown-item py-2 small text-danger fw-semibold" href="#" onclick="handleLogout(); return false;">
+                  <i class="bi bi-box-arrow-right me-2"></i> Log Out
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </header>
+
+      <!-- CONTENT BODY -->
+      <section class="content-container">
+        <!-- Hero Banner for Active Page / Folder -->
+        <div class="folder-hero" id="folderHeroBanner">
+          <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="folder-hero-icon" id="heroFolderIcon" style="background: #4f46e5;">
+                <i class="bi bi-grid-fill"></i>
+              </div>
+              <div>
+                <h2 class="folder-hero-title mb-0" id="heroFolderTitle">All Files & Links</h2>
+                <p class="folder-hero-desc mb-0" id="heroFolderDesc">
+                  Browse and launch all organized Google Drive resources across every department.
+                </p>
+              </div>
+            </div>
+
+            <!-- Folder Admin Action Buttons (When specific folder selected) -->
+            <div class="admin-only-ui d-none d-flex align-items-center gap-2" id="folderAdminControls">
+              <button class="btn btn-light btn-sm border d-flex align-items-center gap-1 text-secondary" id="editCurrentFolderBtn" title="Edit Folder Info">
+                <i class="bi bi-pencil-square text-primary"></i>
+                <span>Edit Folder</span>
+              </button>
+              <button class="btn btn-light btn-sm border d-flex align-items-center gap-1 text-danger" id="deleteCurrentFolderBtn" title="Delete Folder">
+                <i class="bi bi-trash3 text-danger"></i>
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Bar & View Options -->
+        <div class="filter-bar">
+          <!-- Resource Type Chips -->
+          <div class="filter-pills" id="typeFilterPills">
+            <button class="filter-pill active" data-type="all">
+              <i class="bi bi-collection"></i> All Types
+            </button>
+            <button class="filter-pill" data-type="folder">
+              <i class="bi bi-folder-fill text-primary"></i> Folders
+            </button>
+            <button class="filter-pill" data-type="spreadsheet">
+              <i class="bi bi-file-earmark-spreadsheet-fill text-success"></i> Sheets
+            </button>
+            <button class="filter-pill" data-type="document">
+              <i class="bi bi-file-earmark-text-fill text-info"></i> Docs
+            </button>
+            <button class="filter-pill" data-type="presentation">
+              <i class="bi bi-file-earmark-slides-fill text-warning"></i> Slides
+            </button>
+          </div>
+
+          <!-- Cards Summary Info -->
+          <div class="text-muted small fw-semibold" id="itemsCountText">
+            Showing 0 drive items
+          </div>
+        </div>
+
+        <!-- DRIVE CARDS GRID -->
+        <div class="cards-grid" id="cardsGridContainer">
+          <!-- Dynamic cards rendered here -->
+        </div>
+
+        <!-- EMPTY STATE (Shown if no cards match) -->
+        <div class="empty-state d-none" id="emptyStateContainer">
+          <div class="empty-state-icon">
+            <i class="bi bi-cloud-slash"></i>
+          </div>
+          <h4 class="fw-bold text-dark">No Google Drive Links Found</h4>
+          <p class="text-muted mx-auto" style="max-width: 480px;" id="emptyStateDesc">
+            There are currently no Drive cards in this folder. Administrators can add shortcuts to Google Drive folders or documents.
+          </p>
+          <div class="admin-only-ui d-none mt-3">
+            <button class="btn btn-primary fw-semibold px-4" id="emptyStateAddCardBtn" style="background: #4f46e5; border-color: #4f46e5;">
+              <i class="bi bi-plus-lg me-1"></i> Add Drive Card Now
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: ADD / EDIT FOLDER (Admin Only) -->
+  <!-- ======================================================== -->
+  <div class="modal fade" id="folderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="folderForm">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold" id="folderModalTitle">Create New Sidebar Folder</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="folderFormId" value="">
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Folder / Page Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="folderFormName" placeholder="e.g. Design Assets, Research 2026" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Description</label>
+              <textarea class="form-control" id="folderFormDesc" rows="2" placeholder="Brief explanation of this folder's contents..."></textarea>
+            </div>
+
+            <!-- Icon Picker -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary d-flex justify-content-between">
+                <span>Choose Folder Icon</span>
+                <span class="text-muted fw-normal small" id="selectedIconLabel">Selected: bi-folder2</span>
+              </label>
+              <input type="hidden" id="folderFormIcon" value="bi-folder2">
+              <div class="icon-grid" id="iconPickerGrid">
+                <!-- Will be populated with icon buttons -->
+              </div>
+            </div>
+
+            <!-- Color Palette Selector -->
+            <div class="mb-2">
+              <label class="form-label small fw-bold text-secondary">Color Theme</label>
+              <input type="hidden" id="folderFormColor" value="#4f46e5">
+              <div class="color-swatch-row" id="colorPickerRow">
+                <div class="color-swatch selected" data-color="#4f46e5" style="background-color: #4f46e5;" title="Indigo"></div>
+                <div class="color-swatch" data-color="#0284c7" style="background-color: #0284c7;" title="Sky Blue"></div>
+                <div class="color-swatch" data-color="#16a34a" style="background-color: #16a34a;" title="Emerald"></div>
+                <div class="color-swatch" data-color="#ea580c" style="background-color: #ea580c;" title="Orange"></div>
+                <div class="color-swatch" data-color="#9333ea" style="background-color: #9333ea;" title="Purple"></div>
+                <div class="color-swatch" data-color="#e11d48" style="background-color: #e11d48;" title="Rose"></div>
+                <div class="color-swatch" data-color="#0f766e" style="background-color: #0f766e;" title="Teal"></div>
+                <div class="color-swatch" data-color="#475569" style="background-color: #475569;" title="Slate"></div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary fw-semibold px-4" id="saveFolderSubmitBtn" style="background: #4f46e5; border-color: #4f46e5;">
+              Save Folder
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: ADD / EDIT DRIVE CARD (Admin Only) -->
+  <!-- ======================================================== -->
+  <div class="modal fade" id="cardModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="cardForm">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold" id="cardModalTitle">Add Google Drive Card</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="cardFormId" value="">
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Card Title / Resource Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="cardFormTitle" placeholder="e.g. Q4 Financial Forecasts & Receipts" required>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-7">
+                <label class="form-label small fw-bold text-secondary">Target Folder <span class="text-danger">*</span></label>
+                <select class="form-select" id="cardFormFolder" required>
+                  <!-- Populated dynamically with folders -->
+                </select>
+              </div>
+              <div class="col-5">
+                <label class="form-label small fw-bold text-secondary">Resource Type</label>
+                <select class="form-select" id="cardFormType">
+                  <option value="folder">Drive Folder</option>
+                  <option value="spreadsheet">Google Sheet</option>
+                  <option value="document">Google Doc</option>
+                  <option value="presentation">Google Slides</option>
+                  <option value="form">Google Form</option>
+                  <option value="archive">Archive/Zip</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">
+                Google Drive URL <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-primary"><i class="bi bi-google"></i></span>
+                <input type="url" class="form-control" id="cardFormUrl" placeholder="https://drive.google.com/drive/folders/..." required>
+              </div>
+              <div class="form-text small">
+                Paste any Google Drive folder, document, or shared cloud URL.
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Description</label>
+              <textarea class="form-control" id="cardFormDesc" rows="2" placeholder="Briefly describe what this Google Drive folder or document contains..."></textarea>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Tags (Comma-separated)</label>
+              <input type="text" class="form-control" id="cardFormTags" placeholder="e.g. 2026, Finance, Receipts, Audits">
+            </div>
+
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="cardFormStarred">
+              <label class="form-check-label small fw-semibold" for="cardFormStarred">
+                <i class="bi bi-star-fill text-warning me-1"></i> Star this card (Pin to favorites)
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary fw-semibold px-4" id="saveCardSubmitBtn" style="background: #4f46e5; border-color: #4f46e5;">
+              Save Card
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: USER MANAGEMENT (Admin Only) -->
+  <!-- ======================================================== -->
+  <div class="modal fade" id="userManagementModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header border-bottom">
+          <div>
+            <h5 class="modal-title fw-bold mb-1">
+              <i class="bi bi-people-fill text-primary me-2"></i> User & Credential Management
+            </h5>
+            <p class="text-muted small mb-0">Create team members, manage usernames, reset passwords, and assign roles.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <!-- User Controls Top Bar -->
+          <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3 mb-3">
+            <div class="input-group" style="max-width: 320px;">
+              <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control border-start-0 ps-0" id="userSearchInput" placeholder="Filter users by name or username...">
+            </div>
+            <button type="button" class="btn btn-primary d-flex align-items-center justify-content-center gap-2 fw-semibold" id="modalOpenAddUserBtn" style="background: #4f46e5; border-color: #4f46e5;">
+              <i class="bi bi-person-plus-fill"></i> Add New User
+            </button>
+          </div>
+
+          <!-- Users Table -->
+          <div class="table-responsive border rounded-3 bg-white">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-uppercase text-secondary" style="font-size: 0.75rem; letter-spacing: 0.05em;">
+                <tr>
+                  <th class="ps-3 py-3">User</th>
+                  <th class="py-3">Role</th>
+                  <th class="py-3">Date Added</th>
+                  <th class="text-end pe-3 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <!-- Dynamically rendered by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer border-top">
+          <button type="button" class="btn btn-light border px-4" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: ADD / EDIT USER & RESET PASSWORD (Admin Only) -->
+  <!-- ======================================================== -->
+  <div class="modal fade" id="userEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="userEditForm" autocomplete="off">
+          <div class="modal-header border-bottom">
+            <h5 class="modal-title fw-bold" id="userEditModalTitle">Add New User</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-4">
+            <input type="hidden" id="userFormId" value="">
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Full Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="userFormFullName" placeholder="e.g. John Doe" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Username <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted">@</span>
+                <input type="text" class="form-control" id="userFormUsername" placeholder="e.g. jdoe" required>
+              </div>
+              <div class="form-text small">Used for sign in. Letters, numbers, and dashes allowed.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Access Role <span class="text-danger">*</span></label>
+              <select class="form-select" id="userFormRole" required>
+                <option value="user">Team Member (View & Open Cards)</option>
+                <option value="admin">Administrator (Full System & User Control)</option>
+              </select>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small fw-bold text-secondary d-flex justify-content-between" id="userFormPasswordLabel">
+                <span>Password <span class="text-danger" id="userPasswordRequiredAsterisk">*</span></span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted"><i class="bi bi-key-fill"></i></span>
+                <input type="password" class="form-control border-end-0" id="userFormPassword" placeholder="••••••••">
+                <button class="btn btn-outline-secondary border-start-0 bg-light text-muted" type="button" id="toggleUserFormPasswordBtn">
+                  <i class="bi bi-eye" id="toggleUserFormPasswordIcon"></i>
+                </button>
+              </div>
+              <div class="form-text small" id="userFormPasswordHelp">
+                Enter a secure password (minimum 4 characters).
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-top">
+            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary fw-semibold px-4" id="saveUserSubmitBtn" style="background: #4f46e5; border-color: #4f46e5;">
+              Save User
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: DELETE CONFIRMATION -->
+  <!-- ======================================================== -->
+  <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-body text-center p-4">
+          <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-circle bg-danger-subtle text-danger mb-3 fs-3">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+          </div>
+          <h5 class="fw-bold mb-2" id="deleteConfirmTitle">Delete Item?</h5>
+          <p class="text-muted small mb-4" id="deleteConfirmMessage">
+            Are you sure you want to permanently delete this item? This action cannot be undone.
+          </p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger px-4" id="confirmDeleteActionBtn">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: LOGOUT CONFIRMATION -->
+  <!-- ======================================================== -->
+  <div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-body text-center p-4">
+          <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-circle bg-primary-subtle text-primary mb-3 fs-3">
+            <i class="bi bi-box-arrow-right"></i>
+          </div>
+          <h5 class="fw-bold mb-2">Sign Out?</h5>
+          <p class="text-muted small mb-4">
+            Are you sure you want to end your current DriveHub session?
+          </p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger px-4 fw-semibold" id="confirmLogoutActionBtn">Log Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <!-- ======================================================== -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
+    <div id="liveToast" class="toast align-items-center text-white bg-dark border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body d-flex align-items-center gap-2">
+          <i class="bi bi-info-circle-fill text-info" id="toastIcon"></i>
+          <span id="toastMessage">Action completed successfully.</span>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- API Client -->
+  <script src="js/api.js"></script>
+  <!-- Main Application Logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>
