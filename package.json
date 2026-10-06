@@ -2,10 +2,14 @@
   "name": "extension_drivehub",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0 <=22.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "build": "npm rebuild sqlite3 --build-from-source",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
