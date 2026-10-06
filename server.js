@@ -98,6 +98,58 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Register (Public self-registration)
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, full_name } = req.body;
+    if (!username || !password || !full_name) {
+      return res.status(400).json({ error: 'Username, password, and full name are required.' });
+    }
+
+    if (password.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    const existing = await dbHelper.get('SELECT id FROM users WHERE LOWER(username) = ?', [cleanUsername]);
+    if (existing) {
+      return res.status(400).json({ error: 'Username already taken. Please choose another.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const result = await dbHelper.run(
+      'INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)',
+      [cleanUsername, passwordHash, full_name.trim(), 'user']
+    );
+
+    const payload = {
+      id: result.lastID,
+      username: cleanUsername,
+      full_name: full_name.trim(),
+      role: 'user'
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.status(201).json({
+      message: 'Account created successfully',
+      token,
+      user: payload
+    });
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Internal server error during registration.' });
+  }
+});
+
 // Logout
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('token');
@@ -587,12 +639,22 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
 async function start() {
   try {
     await dbHelper.initializeDatabase();
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`===============================================`);
       console.log(`DriveHub Server running on http://localhost:${PORT}`);
       console.log(`Admin Demo: username: admin | password: admin123`);
       console.log(`User Demo:  username: user  | password: user123`);
       console.log(`===============================================`);
+    });
+
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`\n[ERROR] Port ${PORT} is already in use by another running process.`);
+        console.error(`Please stop any other instance of DriveHub or run: npx kill-port ${PORT}\n`);
+      } else {
+        console.error('Server error:', err);
+      }
+      process.exit(1);
     });
   } catch (err) {
     console.error('Failed to start server:', err);

@@ -59,8 +59,12 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm" id="submitLoginBtn" style="background: #4f46e5; border-color: #4f46e5;">
+      <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm mb-2" id="submitLoginBtn" style="background: #4f46e5; border-color: #4f46e5;">
         <i class="bi bi-box-arrow-in-right me-2"></i> Sign In to Workspace
+      </button>
+
+      <button type="button" class="btn btn-create-account w-100 py-2 fw-semibold shadow-sm" id="btnCreateAccount" data-bs-toggle="modal" data-bs-target="#registerModal">
+        <i class="bi bi-person-plus-fill me-2"></i> Create Account
       </button>
     </form>
 
@@ -71,6 +75,67 @@
       </p>
       <div class="text-muted" style="font-size: 0.76rem;">
         Need assistance or access credentials? Contact your workspace administrator.
+      </div>
+    </div>
+  </div>
+
+  <!-- Registration Modal -->
+  <div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+        <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-3 p-2 text-white shadow-sm" style="background: #22c55e;">
+              <i class="bi bi-person-plus-fill fs-4"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0" id="registerModalLabel">Create Account</h5>
+              <p class="text-muted small mb-0">Join DriveHub Workspace</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div id="registerAlert" class="alert alert-danger d-none py-2 px-3 small rounded-3" role="alert"></div>
+
+          <form id="registerForm" autocomplete="on">
+            <div class="mb-3">
+              <label for="regFullName" class="form-label small fw-bold text-secondary">Full Name</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-person-badge"></i></span>
+                <input type="text" class="form-control border-start-0 ps-0" id="regFullName" placeholder="e.g. Alex Johnson" required autocomplete="name">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="regUsername" class="form-label small fw-bold text-secondary">Username</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-at"></i></span>
+                <input type="text" class="form-control border-start-0 ps-0" id="regUsername" placeholder="e.g. alexj" required autocomplete="username">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="regPassword" class="form-label small fw-bold text-secondary">Password</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-lock-fill"></i></span>
+                <input type="password" class="form-control border-start-0 ps-0" id="regPassword" placeholder="Minimum 4 characters" minlength="4" required autocomplete="new-password">
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="regConfirmPassword" class="form-label small fw-bold text-secondary">Confirm Password</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-check"></i></span>
+                <input type="password" class="form-control border-start-0 ps-0" id="regConfirmPassword" placeholder="Re-type your password" minlength="4" required autocomplete="new-password">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-create-account w-100 py-2 fw-semibold shadow-sm" id="submitRegisterBtn">
+              <i class="bi bi-check-circle-fill me-2"></i> Register & Enter Workspace
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -135,6 +200,58 @@
         window.location.href = '/index.html';
       } catch (err) {
         showAlert(err.message || 'Invalid username or password.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
+    });
+
+    // Handle Registration submission
+    const regAlertBox = document.getElementById('registerAlert');
+    function showRegAlert(msg, type = 'danger') {
+      regAlertBox.className = `alert alert-${type} py-2 px-3 small rounded-3`;
+      regAlertBox.textContent = msg;
+      regAlertBox.classList.remove('d-none');
+    }
+    function hideRegAlert() {
+      regAlertBox.classList.add('d-none');
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideRegAlert();
+
+      const fullName = document.getElementById('regFullName').value.trim();
+      const username = document.getElementById('regUsername').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const confirmPassword = document.getElementById('regConfirmPassword').value;
+      const submitBtn = document.getElementById('submitRegisterBtn');
+      const originalText = submitBtn.innerHTML;
+
+      if (password !== confirmPassword) {
+        showRegAlert('Passwords do not match. Please verify and re-type.');
+        return;
+      }
+
+      if (password.length < 4) {
+        showRegAlert('Password must be at least 4 characters long.');
+        return;
+      }
+
+      try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating account...';
+
+        await API.register({
+          full_name: fullName,
+          username: username,
+          password: password
+        });
+
+        // Redirect directly to dashboard upon successful registration
+        window.location.href = '/index.html';
+      } catch (err) {
+        showRegAlert(err.message || 'Failed to create account. Please try again.');
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;

@@ -81,10 +81,15 @@ const API = {
   },
 
   async register(userData) {
-    return await this.request('/api/auth/register', {
+    const data = await this.request('/api/auth/register', {
       method: 'POST',
       body: userData
     });
+    if (data.token) {
+      localStorage.setItem('drivehub_token', data.token);
+      localStorage.setItem('drivehub_user', JSON.stringify(data.user));
+    }
+    return data;
   },
 
   // Folder Endpoints
