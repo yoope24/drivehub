@@ -635,50 +635,6 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
   }
 });
 
-// ==========================================
-// BACKUP & PERSISTENCE ROUTES (Seed Data Sync)
-// ==========================================
-
-// Export all folders and cards as seed_data.json
-app.get('/api/backup/export', authenticateToken, async (req, res) => {
-  try {
-    const backupData = await dbHelper.exportToSeedFile();
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', 'attachment; filename="seed_data.json"');
-    res.json(backupData);
-  } catch (err) {
-    console.error('Backup export error:', err);
-    res.status(500).json({ error: 'Failed to export backup data.' });
-  }
-});
-
-// Import folders and cards from JSON (Admin only)
-app.post('/api/backup/import', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const payload = req.body;
-    if (!payload || !Array.isArray(payload.folders)) {
-      return res.status(400).json({ error: 'Invalid backup format. Must contain a "folders" array.' });
-    }
-
-    await dbHelper.importFromSeedData(payload);
-    res.json({ message: 'Folders and cards imported and saved to seed_data.json successfully!' });
-  } catch (err) {
-    console.error('Backup import error:', err);
-    res.status(500).json({ error: 'Failed to import data: ' + err.message });
-  }
-});
-
-// Force sync active database to seed_data.json on disk
-app.post('/api/backup/sync-seed', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const data = await dbHelper.exportToSeedFile();
-    res.json({ message: 'Current database successfully synced to data/seed_data.json', count: data ? data.folders.length : 0 });
-  } catch (err) {
-    console.error('Sync error:', err);
-    res.status(500).json({ error: 'Failed to sync to seed file.' });
-  }
-});
-
 // Start Server and Initialize DB
 async function start() {
   try {

@@ -192,23 +192,5 @@ const API = {
     return await this.request(`/api/users/${id}`, {
       method: 'DELETE'
     });
-  },
-
-  // Backup & Data Sync
-  async exportBackup() {
-    return await this.request('/api/backup/export', { method: 'GET' });
-  },
-
-  async importBackup(backupData) {
-    return await this.request('/api/backup/import', {
-      method: 'POST',
-      body: backupData
-    });
-  },
-
-  async syncSeed() {
-    return await this.request('/api/backup/sync-seed', {
-      method: 'POST'
-    });
   }
 };

@@ -117,39 +117,7 @@ async function initializeDatabase() {
   // Seed initial folders if empty
   const folderCount = await get(`SELECT COUNT(*) as count FROM folders`);
   if (folderCount && folderCount.count === 0) {
-    const rootSeed = path.join(__dirname, 'seed_data.json');
-    const dataSeed = path.join(dataDir, 'seed_data.json');
-    const seedFilePath = fs.existsSync(rootSeed) ? rootSeed : (fs.existsSync(dataSeed) ? dataSeed : null);
-    if (seedFilePath && fs.existsSync(seedFilePath)) {
-      try {
-        console.log(`Loading folders and Google Drive cards from ${seedFilePath}...`);
-        const raw = fs.readFileSync(seedFilePath, 'utf8');
-        const seedData = JSON.parse(raw);
-        if (seedData && Array.isArray(seedData.folders) && seedData.folders.length > 0) {
-          for (const f of seedData.folders) {
-            const result = await run(
-              `INSERT INTO folders (name, slug, icon, color, description, order_index) VALUES (?, ?, ?, ?, ?, ?)`,
-              [f.name, f.slug || f.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), f.icon || 'bi-folder2', f.color || '#4f46e5', f.description || '', f.order_index || 0]
-            );
-            const folderId = result.lastID;
-            if (Array.isArray(f.cards)) {
-              for (const c of f.cards) {
-                await run(
-                  `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                  [folderId, c.title, c.description || '', c.drive_url, c.resource_type || 'folder', c.tags || '', c.is_starred ? 1 : 0]
-                );
-              }
-            }
-          }
-          console.log(`Seeded ${seedData.folders.length} folders from data/seed_data.json successfully.`);
-          return;
-        }
-      } catch (err) {
-        console.error('Error loading seed_data.json, falling back to default:', err);
-      }
-    }
-
-    console.log('Seeding initial folders and Google Drive cards (default fallback)...');
+    console.log('Seeding initial folders and Google Drive cards...');
 
     const foldersData = [
       {
@@ -333,71 +301,10 @@ async function initializeDatabase() {
   }
 }
 
-// Export current folders and cards to data/seed_data.json
-async function exportToSeedFile() {
-  try {
-    const folders = await all('SELECT * FROM folders ORDER BY order_index ASC');
-    const result = [];
-    for (const f of folders) {
-      const cards = await all('SELECT title, description, drive_url, resource_type, tags, is_starred FROM drive_cards WHERE folder_id = ? ORDER BY id ASC', [f.id]);
-      result.push({
-        name: f.name,
-        slug: f.slug,
-        icon: f.icon,
-        color: f.color,
-        description: f.description,
-        order_index: f.order_index,
-        cards: cards
-      });
-    }
-    const content = JSON.stringify({ folders: result }, null, 2);
-    try { fs.writeFileSync(path.join(__dirname, 'seed_data.json'), content, 'utf8'); } catch (e) {}
-    try { fs.writeFileSync(path.join(dataDir, 'seed_data.json'), content, 'utf8'); } catch (e) {}
-    console.log('[Auto-Backup] Synced folders and cards to seed_data.json');
-    return { folders: result };
-  } catch (err) {
-    console.error('Failed to export to seed file:', err);
-    return null;
-  }
-}
-
-// Import folders and cards from JSON structure into SQLite
-async function importFromSeedData(seedData) {
-  if (!seedData || !Array.isArray(seedData.folders)) {
-    throw new Error('Invalid data format. Expected an object with a "folders" array.');
-  }
-
-  // Clear existing cards and folders
-  await run('DELETE FROM drive_cards');
-  await run('DELETE FROM folders');
-
-  for (const f of seedData.folders) {
-    const res = await run(
-      'INSERT INTO folders (name, slug, icon, color, description, order_index) VALUES (?, ?, ?, ?, ?, ?)',
-      [f.name, f.slug || f.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), f.icon || 'bi-folder2', f.color || '#4f46e5', f.description || '', f.order_index || 0]
-    );
-    const folderId = res.lastID;
-
-    if (Array.isArray(f.cards)) {
-      for (const c of f.cards) {
-        await run(
-          'INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [folderId, c.title, c.description || '', c.drive_url, c.resource_type || 'folder', c.tags || '', c.is_starred ? 1 : 0]
-        );
-      }
-    }
-  }
-
-  // Update seed_data.json
-  await exportToSeedFile();
-}
-
 module.exports = {
   db,
   run,
   get,
   all,
-  initializeDatabase,
-  exportToSeedFile,
-  importFromSeedData
+  initializeDatabase
 };
