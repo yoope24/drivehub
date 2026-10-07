@@ -194,19 +194,21 @@ const API = {
     });
   },
 
-  // Backup & Restore
-  async getBackup() {
-    return await this.request('/api/backup', { method: 'GET' });
+  // Backup & Data Sync
+  async exportBackup() {
+    return await this.request('/api/backup/export', { method: 'GET' });
   },
 
-  async saveSeed() {
-    return await this.request('/api/backup/save-seed', { method: 'POST' });
-  },
-
-  async restoreBackup(backupData) {
-    return await this.request('/api/backup/restore', {
+  async importBackup(backupData) {
+    return await this.request('/api/backup/import', {
       method: 'POST',
       body: backupData
+    });
+  },
+
+  async syncSeed() {
+    return await this.request('/api/backup/sync-seed', {
+      method: 'POST'
     });
   }
 };

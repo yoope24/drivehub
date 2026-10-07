@@ -31,7 +31,6 @@ let cardModalInstance = null;
 let deleteModalInstance = null;
 let userManagementModalInstance = null;
 let userEditModalInstance = null;
-let backupModalInstance = null;
 let logoutModalInstance = null;
 let toastInstance = null;
 
@@ -61,9 +60,6 @@ function initBootstrapInstances() {
 
   const userEditModalEl = document.getElementById('userEditModal');
   if (userEditModalEl) userEditModalInstance = new bootstrap.Modal(userEditModalEl);
-
-  const backupModalEl = document.getElementById('backupModal');
-  if (backupModalEl) backupModalInstance = new bootstrap.Modal(backupModalEl);
 
   const logoutModalEl = document.getElementById('logoutConfirmModal');
   if (logoutModalEl) logoutModalInstance = new bootstrap.Modal(logoutModalEl);
@@ -1101,74 +1097,75 @@ function escapeHtml(str) {
 }
 
 // ========================================================
-// DATA PERSISTENCE & BACKUP HANDLERS
+// BACKUP & DATA PERSISTENCE MODAL
 // ========================================================
+let backupModalInstance = null;
 
 window.openBackupModal = function() {
-  if (backupModalInstance) backupModalInstance.show();
+  if (!backupModalInstance) {
+    const el = document.getElementById('backupModal');
+    if (el) backupModalInstance = new bootstrap.Modal(el);
+  }
+  if (backupModalInstance) {
+    backupModalInstance.show();
+  }
 };
 
-document.getElementById('exportBackupBtn')?.addEventListener('click', async () => {
-  const btn = document.getElementById('exportBackupBtn');
+window.downloadBackupJSON = async function() {
+  const btn = document.getElementById('btnDownloadBackup');
   try {
-    btn.disabled = true;
-    btn.textContent = 'Exporting...';
-    const data = await API.getBackup();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `drivehub_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Backup downloaded successfully! 📁');
-  } catch (err) {
-    showToast('Failed to export backup: ' + err.message, 'bi-exclamation-circle text-danger');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Download JSON';
-  }
-});
-
-document.getElementById('saveSeedBtn')?.addEventListener('click', async () => {
-  const btn = document.getElementById('saveSeedBtn');
-  try {
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
-    await API.saveSeed();
-    showToast('Saved current data to seed_data.json on server! 🌟');
-  } catch (err) {
-    showToast('Failed to save seed: ' + err.message, 'bi-exclamation-circle text-danger');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Save to Server';
-  }
-});
-
-document.getElementById('importBackupBtn')?.addEventListener('click', async () => {
-  const fileInput = document.getElementById('importBackupFile');
-  const btn = document.getElementById('importBackupBtn');
-  if (!fileInput.files || fileInput.files.length === 0) {
-    showToast('Please select a .json backup file first!', 'bi-exclamation-circle text-warning');
-    return;
-  }
-
-  const file = fileInput.files[0];
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
+    if (btn) {
       btn.disabled = true;
-      btn.textContent = 'Restoring...';
-      const parsed = JSON.parse(e.target.result);
-      await API.restoreBackup(parsed);
-      showToast('Database restored successfully! Reloading...');
-      setTimeout(() => window.location.reload(), 1200);
-    } catch (err) {
-      showToast('Failed to restore: ' + (err.message || 'Invalid JSON file'), 'bi-exclamation-circle text-danger');
-    } finally {
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Exporting...';
+    }
+    showToast('Exporting current folders and cards...', 'bi-download text-info');
+
+    const res = await API.exportBackup();
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res, null, 2));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", "seed_data.json");
+    document.body.appendChild(dlAnchorElem);
+    dlAnchorElem.click();
+    dlAnchorElem.remove();
+
+    showToast('seed_data.json downloaded successfully!', 'bi-check-circle-fill text-success');
+  } catch (err) {
+    console.error('Download backup error:', err);
+    showToast('Failed to download backup: ' + (err.message || err), 'bi-exclamation-triangle text-danger');
+  } finally {
+    if (btn) {
       btn.disabled = false;
-      btn.textContent = 'Restore from File';
+      btn.innerHTML = '<i class="bi bi-file-earmark-arrow-down me-1"></i> Download seed_data.json';
+    }
+  }
+};
+
+window.handleImportJSON = async function(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed || !Array.isArray(parsed.folders)) {
+        throw new Error('Invalid JSON format. Expected an object with a "folders" array.');
+      }
+
+      showToast('Importing folders & cards into live database...', 'bi-cloud-arrow-up text-info');
+      await API.importBackup(parsed);
+      showToast('Data imported and saved successfully!', 'bi-check-circle-fill text-success');
+
+      if (backupModalInstance) backupModalInstance.hide();
+      await fetchFolders();
+      await fetchCards();
+    } catch (err) {
+      console.error('Import error:', err);
+      showToast('Import error: ' + (err.message || err), 'bi-exclamation-triangle text-danger');
+    } finally {
+      event.target.value = '';
     }
   };
   reader.readAsText(file);
-});
+};

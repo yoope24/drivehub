@@ -636,68 +636,46 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
-// BACKUP & RESTORE / SEED DATA MANAGEMENT
+// BACKUP & PERSISTENCE ROUTES (Seed Data Sync)
 // ==========================================
 
-// Export current database to JSON
-app.get('/api/backup', authenticateToken, requireAdmin, async (req, res) => {
+// Export all folders and cards as seed_data.json
+app.get('/api/backup/export', authenticateToken, async (req, res) => {
   try {
-    const data = await dbHelper.exportDataAsJson();
-    res.json(data);
+    const backupData = await dbHelper.exportToSeedFile();
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="seed_data.json"');
+    res.json(backupData);
   } catch (err) {
     console.error('Backup export error:', err);
-    res.status(500).json({ error: 'Failed to generate backup.' });
+    res.status(500).json({ error: 'Failed to export backup data.' });
   }
 });
 
-// Save current live data into seed_data.json
-app.post('/api/backup/save-seed', authenticateToken, requireAdmin, async (req, res) => {
+// Import folders and cards from JSON (Admin only)
+app.post('/api/backup/import', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const data = await dbHelper.exportDataAsJson();
-    const seedPath = path.join(__dirname, 'seed_data.json');
-    const fs = require('fs');
-    fs.writeFileSync(seedPath, JSON.stringify(data, null, 2), 'utf8');
-    res.json({ message: 'Current database saved to seed_data.json successfully!', data });
-  } catch (err) {
-    console.error('Save seed error:', err);
-    res.status(500).json({ error: 'Failed to save seed_data.json.' });
-  }
-});
-
-// Restore database from uploaded JSON
-app.post('/api/backup/restore', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { folders } = req.body;
-    if (!folders || !Array.isArray(folders)) {
+    const payload = req.body;
+    if (!payload || !Array.isArray(payload.folders)) {
       return res.status(400).json({ error: 'Invalid backup format. Must contain a "folders" array.' });
     }
 
-    // Clear existing folders and cards
-    await dbHelper.run('DELETE FROM drive_cards');
-    await dbHelper.run('DELETE FROM folders');
-
-    for (let i = 0; i < folders.length; i++) {
-      const f = folders[i];
-      const result = await dbHelper.run(
-        'INSERT INTO folders (name, slug, icon, color, description, order_index) VALUES (?, ?, ?, ?, ?, ?)',
-        [f.name, f.slug, f.icon || 'bi-folder2', f.color || '#4f46e5', f.description || '', f.order_index || (i + 1)]
-      );
-      const folderId = result.lastID;
-
-      if (f.cards && Array.isArray(f.cards)) {
-        for (const c of f.cards) {
-          await dbHelper.run(
-            'INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [folderId, c.title, c.description || '', c.drive_url, c.resource_type || 'folder', c.tags || '', c.is_starred ? 1 : 0]
-          );
-        }
-      }
-    }
-
-    res.json({ message: 'Database restored successfully!', folderCount: folders.length });
+    await dbHelper.importFromSeedData(payload);
+    res.json({ message: 'Folders and cards imported and saved to seed_data.json successfully!' });
   } catch (err) {
-    console.error('Restore error:', err);
-    res.status(500).json({ error: 'Failed to restore database.' });
+    console.error('Backup import error:', err);
+    res.status(500).json({ error: 'Failed to import data: ' + err.message });
+  }
+});
+
+// Force sync active database to seed_data.json on disk
+app.post('/api/backup/sync-seed', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const data = await dbHelper.exportToSeedFile();
+    res.json({ message: 'Current database successfully synced to data/seed_data.json', count: data ? data.folders.length : 0 });
+  } catch (err) {
+    console.error('Sync error:', err);
+    res.status(500).json({ error: 'Failed to sync to seed file.' });
   }
 });
 
