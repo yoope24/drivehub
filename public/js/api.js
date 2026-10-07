@@ -192,5 +192,21 @@ const API = {
     return await this.request(`/api/users/${id}`, {
       method: 'DELETE'
     });
+  },
+
+  // Backup & Restore
+  async getBackup() {
+    return await this.request('/api/backup', { method: 'GET' });
+  },
+
+  async saveSeed() {
+    return await this.request('/api/backup/save-seed', { method: 'POST' });
+  },
+
+  async restoreBackup(backupData) {
+    return await this.request('/api/backup/restore', {
+      method: 'POST',
+      body: backupData
+    });
   }
 };

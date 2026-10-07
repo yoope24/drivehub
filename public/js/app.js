@@ -31,6 +31,7 @@ let cardModalInstance = null;
 let deleteModalInstance = null;
 let userManagementModalInstance = null;
 let userEditModalInstance = null;
+let backupModalInstance = null;
 let logoutModalInstance = null;
 let toastInstance = null;
 
@@ -60,6 +61,9 @@ function initBootstrapInstances() {
 
   const userEditModalEl = document.getElementById('userEditModal');
   if (userEditModalEl) userEditModalInstance = new bootstrap.Modal(userEditModalEl);
+
+  const backupModalEl = document.getElementById('backupModal');
+  if (backupModalEl) backupModalInstance = new bootstrap.Modal(backupModalEl);
 
   const logoutModalEl = document.getElementById('logoutConfirmModal');
   if (logoutModalEl) logoutModalInstance = new bootstrap.Modal(logoutModalEl);
@@ -1095,3 +1099,76 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// ========================================================
+// DATA PERSISTENCE & BACKUP HANDLERS
+// ========================================================
+
+window.openBackupModal = function() {
+  if (backupModalInstance) backupModalInstance.show();
+};
+
+document.getElementById('exportBackupBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('exportBackupBtn');
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Exporting...';
+    const data = await API.getBackup();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `drivehub_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Backup downloaded successfully! 📁');
+  } catch (err) {
+    showToast('Failed to export backup: ' + err.message, 'bi-exclamation-circle text-danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download JSON';
+  }
+});
+
+document.getElementById('saveSeedBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('saveSeedBtn');
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    await API.saveSeed();
+    showToast('Saved current data to seed_data.json on server! 🌟');
+  } catch (err) {
+    showToast('Failed to save seed: ' + err.message, 'bi-exclamation-circle text-danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save to Server';
+  }
+});
+
+document.getElementById('importBackupBtn')?.addEventListener('click', async () => {
+  const fileInput = document.getElementById('importBackupFile');
+  const btn = document.getElementById('importBackupBtn');
+  if (!fileInput.files || fileInput.files.length === 0) {
+    showToast('Please select a .json backup file first!', 'bi-exclamation-circle text-warning');
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      btn.disabled = true;
+      btn.textContent = 'Restoring...';
+      const parsed = JSON.parse(e.target.result);
+      await API.restoreBackup(parsed);
+      showToast('Database restored successfully! Reloading...');
+      setTimeout(() => window.location.reload(), 1200);
+    } catch (err) {
+      showToast('Failed to restore: ' + (err.message || 'Invalid JSON file'), 'bi-exclamation-circle text-danger');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Restore from File';
+    }
+  };
+  reader.readAsText(file);
+});

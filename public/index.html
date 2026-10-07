@@ -66,6 +66,15 @@
               <span class="link-text">User Management</span>
             </a>
           </li>
+          <!-- Admin Backup & Persistence in Sidebar -->
+          <li class="sidebar-item admin-only-ui d-none">
+            <a class="sidebar-link" id="navBackup" onclick="openBackupModal()">
+              <span class="icon-box" style="background-color: rgba(16, 185, 129, 0.2); color: #34d399;">
+                <i class="bi bi-cloud-arrow-up-fill"></i>
+              </span>
+              <span class="link-text">Backup & Persistence</span>
+            </a>
+          </li>
         </ul>
 
         <!-- Dynamic Folders Section -->
@@ -505,6 +514,67 @@
             </button>
           </div>
         </form>
+      </div>
+  <!-- ======================================================== -->
+  <!-- MODAL: BACKUP & DATA PERSISTENCE -->
+  <!-- ======================================================== -->
+  <div class="modal fade" id="backupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+        <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-3 p-2 text-white shadow-sm" style="background: #10b981;">
+              <i class="bi bi-cloud-arrow-up-fill fs-4"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0">Data Persistence & Backup</h5>
+              <p class="text-muted small mb-0">Save and restore your ESSU Google Drive links</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-info py-2 px-3 small rounded-3 mb-4">
+            <i class="bi bi-info-circle-fill me-1"></i>
+            Render Free Tier resets local storage when it sleeps. Use these tools to keep your data permanent!
+          </div>
+
+          <!-- Action 1: Export JSON -->
+          <div class="card border p-3 mb-3 rounded-3 shadow-none">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="fw-bold mb-1"><i class="bi bi-download text-primary me-2"></i>Export Backup</h6>
+                <p class="text-muted small mb-0">Download a full JSON backup of all your folders & Drive cards.</p>
+              </div>
+              <button class="btn btn-sm btn-primary px-3 fw-semibold text-nowrap" id="exportBackupBtn">
+                Download JSON
+              </button>
+            </div>
+          </div>
+
+          <!-- Action 2: Save as Default Seed -->
+          <div class="card border p-3 mb-3 rounded-3 shadow-none">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="fw-bold mb-1"><i class="bi bi-pin-angle-fill text-success me-2"></i>Save as Default Seed</h6>
+                <p class="text-muted small mb-0">Saves current links into seed_data.json on server.</p>
+              </div>
+              <button class="btn btn-sm btn-success px-3 fw-semibold text-nowrap" id="saveSeedBtn">
+                Save to Server
+              </button>
+            </div>
+          </div>
+
+          <!-- Action 3: Restore JSON -->
+          <div class="card border p-3 rounded-3 shadow-none">
+            <h6 class="fw-bold mb-1"><i class="bi bi-upload text-warning me-2"></i>Restore from Backup</h6>
+            <p class="text-muted small mb-3">Upload a previously exported backup file to restore all your links.</p>
+            <input type="file" id="importBackupFile" class="form-control form-control-sm mb-2" accept=".json">
+            <button class="btn btn-sm btn-outline-warning w-100 fw-semibold" id="importBackupBtn">
+              Restore from File
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

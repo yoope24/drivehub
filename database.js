@@ -1,49 +1,94 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 
-// Ensure data folder exists
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+let client = null;
+let sqliteDb = null;
 
-const dbPath = path.join(dataDir, 'drivehub.sqlite');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Failed to connect to SQLite database:', err.message);
+// Determine connection mode: Turso Cloud Database OR local SQLite
+async function getDbConnection() {
+  if (process.env.TURSO_DATABASE_URL) {
+    if (!client) {
+      const { createClient } = await import('@libsql/client');
+      client = createClient({
+        url: process.env.TURSO_DATABASE_URL,
+        authToken: process.env.TURSO_AUTH_TOKEN
+      });
+      console.log('⚡ Connected to Turso Cloud Database at:', process.env.TURSO_DATABASE_URL);
+    }
+    return { type: 'turso', client };
   } else {
-    console.log('Connected to SQLite database at:', dbPath);
+    if (!sqliteDb) {
+      const sqlite3 = require('sqlite3').verbose();
+      const dataDir = path.join(__dirname, 'data');
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      const dbPath = path.join(dataDir, 'drivehub.sqlite');
+      sqliteDb = new sqlite3.Database(dbPath, (err) => {
+        if (err) {
+          console.error('Failed to connect to SQLite database:', err.message);
+        } else {
+          console.log('Connected to SQLite database at:', dbPath);
+        }
+      });
+    }
+    return { type: 'sqlite', db: sqliteDb };
   }
-});
-
-// Helper for promises
-function run(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
 }
 
-function get(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
+// Promise helper: execute query (INSERT, UPDATE, DELETE, DDL)
+async function run(sql, params = []) {
+  const conn = await getDbConnection();
+  if (conn.type === 'turso') {
+    const res = await conn.client.execute({ sql, args: params });
+    return {
+      lastID: res.lastInsertRowid !== undefined ? Number(res.lastInsertRowid) : 0,
+      changes: res.rowsAffected
+    };
+  } else {
+    return new Promise((resolve, reject) => {
+      conn.db.run(sql, params, function (err) {
+        if (err) reject(err);
+        else resolve(this);
+      });
     });
-  });
+  }
 }
 
-function all(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
+// Promise helper: fetch single row
+async function get(sql, params = []) {
+  const conn = await getDbConnection();
+  if (conn.type === 'turso') {
+    const res = await conn.client.execute({ sql, args: params });
+    if (res.rows && res.rows.length > 0) {
+      return res.rows[0];
+    }
+    return null;
+  } else {
+    return new Promise((resolve, reject) => {
+      conn.db.get(sql, params, (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
     });
-  });
+  }
+}
+
+// Promise helper: fetch all rows
+async function all(sql, params = []) {
+  const conn = await getDbConnection();
+  if (conn.type === 'turso') {
+    const res = await conn.client.execute({ sql, args: params });
+    return res.rows || [];
+  } else {
+    return new Promise((resolve, reject) => {
+      conn.db.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  }
 }
 
 // Initialize tables and seed default data
@@ -116,195 +161,123 @@ async function initializeDatabase() {
 
   // Seed initial folders if empty
   const folderCount = await get(`SELECT COUNT(*) as count FROM folders`);
-  if (folderCount && folderCount.count === 0) {
-    console.log('Seeding initial folders and Google Drive cards...');
+  if (folderCount && (folderCount.count === 0 || folderCount.count === '0')) {
+    console.log('Database folders empty. Seeding initial data...');
 
-    const foldersData = [
+    // Priority 1: Check seed_data.json
+    const seedPath = path.join(__dirname, 'seed_data.json');
+    if (fs.existsSync(seedPath)) {
+      try {
+        const raw = fs.readFileSync(seedPath, 'utf8');
+        const seed = JSON.parse(raw);
+        if (seed.folders && Array.isArray(seed.folders) && seed.folders.length > 0) {
+          console.log(`Seeding from seed_data.json (${seed.folders.length} folders)...`);
+          for (let i = 0; i < seed.folders.length; i++) {
+            const f = seed.folders[i];
+            const result = await run(
+              `INSERT INTO folders (name, slug, icon, color, description, order_index) VALUES (?, ?, ?, ?, ?, ?)`,
+              [f.name, f.slug, f.icon || 'bi-folder2', f.color || '#4f46e5', f.description || '', f.order_index || (i + 1)]
+            );
+            const folderId = result.lastID;
+
+            if (f.cards && Array.isArray(f.cards)) {
+              for (const c of f.cards) {
+                await run(
+                  `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                  [
+                    folderId,
+                    c.title,
+                    c.description || '',
+                    c.drive_url,
+                    c.resource_type || 'folder',
+                    c.tags || '',
+                    c.is_starred ? 1 : 0
+                  ]
+                );
+              }
+            }
+          }
+          console.log('Seeding from seed_data.json completed successfully! 🌟');
+          return;
+        }
+      } catch (err) {
+        console.error('Error reading seed_data.json, falling back to built-in seed:', err);
+      }
+    }
+
+    // Fallback: Built-in default folders if seed_data.json missing
+    const defaultFolders = [
       {
-        name: 'Company Drive',
-        slug: 'company-drive',
+        name: 'ESSU Administration & Executive',
+        slug: 'essu-admin-executive',
         icon: 'bi-building-fill',
-        color: '#4f46e5',
-        description: 'Core organizational assets, executive documents, and company-wide policies.',
+        color: '#15803d',
+        description: 'University policies, board resolutions, and executive documents.',
         order_index: 1
       },
       {
-        name: 'Marketing & Brand',
-        slug: 'marketing-brand',
-        icon: 'bi-megaphone-fill',
-        color: '#ea580c',
-        description: 'Brand guides, media kits, ad campaign creatives, and social media materials.',
+        name: 'Extension Services & Outreach',
+        slug: 'extension-services-outreach',
+        icon: 'bi-people-fill',
+        color: '#059669',
+        description: 'Community projects, training workshops, and partner organizations.',
         order_index: 2
       },
       {
-        name: 'Product & Engineering',
-        slug: 'product-engineering',
-        icon: 'bi-cpu-fill',
+        name: 'Research & Development',
+        slug: 'research-development',
+        icon: 'bi-mortarboard-fill',
         color: '#0284c7',
-        description: 'Architecture blueprints, API specs, sprint roadmaps, and tech diagrams.',
+        description: 'Faculty research publications, journals, and grants.',
         order_index: 3
-      },
-      {
-        name: 'Finance & Invoices',
-        slug: 'finance-invoices',
-        icon: 'bi-cash-coin',
-        color: '#16a34a',
-        description: 'Budget spreadsheets, quarter reports, purchase receipts, and audit books.',
-        order_index: 4
-      },
-      {
-        name: 'Human Resources',
-        slug: 'human-resources',
-        icon: 'bi-people-fill',
-        color: '#9333ea',
-        description: 'Staff directory, onboarding packs, compliance forms, and holiday policies.',
-        order_index: 5
       }
     ];
 
-    for (const f of foldersData) {
-      const result = await run(
+    for (const f of defaultFolders) {
+      await run(
         `INSERT INTO folders (name, slug, icon, color, description, order_index) VALUES (?, ?, ?, ?, ?, ?)`,
         [f.name, f.slug, f.icon, f.color, f.description, f.order_index]
       );
-      const folderId = result.lastID;
-
-      // Seed Drive cards per folder
-      if (f.slug === 'company-drive') {
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'All-Hands Company Presentations 2026',
-            'Monthly town hall decks, corporate milestones, and executive Q&A recordings.',
-            'https://drive.google.com/drive/folders/1aBcDeFgHiJkLmNoPqRsTuVwXyZ012345',
-            'presentation',
-            'AllHands, Corporate, Keynote',
-            1
-          ]
-        );
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'Corporate Legal & Compliance Repo',
-            'NDAs, standard client service agreements, terms of service, and certificates of incorporation.',
-            'https://drive.google.com/drive/folders/1bCdEfGhIjKlMnOpQrStUvWxYz0123456',
-            'folder',
-            'Legal, Compliance, Contracts',
-            0
-          ]
-        );
-      } else if (f.slug === 'marketing-brand') {
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'Official Brand Assets & SVG Logos',
-            'Vector logos, typography guides, high-res dark/light badges, and approved color palettes.',
-            'https://drive.google.com/drive/folders/1cDeFgHiJkLmNoPqRsTuVwXyZa0123457',
-            'folder',
-            'Logos, Design, Branding',
-            1
-          ]
-        );
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'Q4 Global Campaign Assets & Press Kit',
-            'Promo videos, banner exports, email marketing templates, and press release materials.',
-            'https://drive.google.com/drive/folders/1dEfGhIjKlMnOpQrStUvWxYzAb0123458',
-            'folder',
-            'Q4, Advertising, Media',
-            0
-          ]
-        );
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'Marketing Content Calendar Sheet',
-            'Editorial calendar for blogs, social channels, webinars, and partner releases.',
-            'https://docs.google.com/spreadsheets/d/1eFgHiJkLmNoPqRsTuVwXyZbc0123459',
-            'spreadsheet',
-            'Content, Social, Schedule',
-            1
-          ]
-        );
-      } else if (f.slug === 'product-engineering') {
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'System Architecture & RFC Documents',
-            'Microservices topology, database schema migrations, and architectural decision records (ADRs).',
-            'https://drive.google.com/drive/folders/1fGhIjKlMnOpQrStUvWxYzcd0123450',
-            'document',
-            'Architecture, RFC, Backend',
-            1
-          ]
-        );
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'Cloud Infrastructure & DevOps Backups',
-            'Terraform configs, Kubernetes deployment manifests, and cloud disaster recovery runbooks.',
-            'https://drive.google.com/drive/folders/1gHiJkLmNoPqRsTuVwXyZde0123451',
-            'folder',
-            'DevOps, AWS, Terraform',
-            0
-          ]
-        );
-      } else if (f.slug === 'finance-invoices') {
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'Fiscal Year 2026 Budgeting & Forecasts',
-            'Quarterly P&L breakdowns, department allocations, runway models, and revenue projections.',
-            'https://docs.google.com/spreadsheets/d/1hIjKlMnOpQrStUvWxYzef0123452',
-            'spreadsheet',
-            'Budget, Forecast, 2026',
-            1
-          ]
-        );
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'Vendor Receipts & Client Invoices',
-            'Scanned invoice receipts, tax remittance documentation, and payment proofs.',
-            'https://drive.google.com/drive/folders/1iJkLmNoPqRsTuVwXyZfg0123453',
-            'folder',
-            'Invoices, Receipts, Vendors',
-            0
-          ]
-        );
-      } else if (f.slug === 'human-resources') {
-        await run(
-          `INSERT INTO drive_cards (folder_id, title, description, drive_url, resource_type, tags, is_starred) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            folderId,
-            'New Hire Onboarding & Welcome Kit',
-            'Step-by-step 30-60-90 day checklists, laptop setup guides, security compliance, and benefits handbook.',
-            'https://drive.google.com/drive/folders/1jKlMnOpQrStUvWxYzgh0123454',
-            'folder',
-            'Onboarding, Culture, Welcome',
-            1
-          ]
-        );
-      }
     }
-    console.log('Seeding finished successfully.');
+    console.log('Built-in fallback seeding completed.');
   }
 }
 
+// Export current database to a JSON structure for backup or seed updating
+async function exportDataAsJson() {
+  const folders = await all('SELECT * FROM folders ORDER BY order_index ASC, id ASC');
+  const cards = await all('SELECT * FROM drive_cards ORDER BY id ASC');
+
+  const exportStructure = {
+    export_date: new Date().toISOString(),
+    folders: folders.map(f => {
+      const folderCards = cards.filter(c => c.folder_id === f.id);
+      return {
+        name: f.name,
+        slug: f.slug,
+        icon: f.icon,
+        color: f.color,
+        description: f.description,
+        order_index: f.order_index,
+        cards: folderCards.map(c => ({
+          title: c.title,
+          description: c.description,
+          drive_url: c.drive_url,
+          resource_type: c.resource_type,
+          tags: c.tags,
+          is_starred: c.is_starred
+        }))
+      };
+    })
+  };
+
+  return exportStructure;
+}
+
 module.exports = {
-  db,
   run,
   get,
   all,
-  initializeDatabase
+  initializeDatabase,
+  exportDataAsJson
 };

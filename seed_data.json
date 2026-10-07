@@ -1,0 +1,110 @@
+{
+  "folders": [
+    {
+      "name": "ESSU Administration & Executive",
+      "slug": "essu-admin-executive",
+      "icon": "bi-building-fill",
+      "color": "#15803d",
+      "description": "Board resolutions, presidential memos, university policies, and executive issuances.",
+      "order_index": 1,
+      "cards": [
+        {
+          "title": "ESSU University Code & Manuals",
+          "description": "Official university manual, student handbook, and administrative policies.",
+          "drive_url": "https://drive.google.com/drive/folders/1_example_essu_admin_code",
+          "resource_type": "document",
+          "tags": "Manual, Policy, Executive",
+          "is_starred": 1
+        },
+        {
+          "title": "Administrative Memos & Board Resolutions",
+          "description": "Latest board of regents meeting minutes, office orders, and official circulars.",
+          "drive_url": "https://drive.google.com/drive/folders/1_example_essu_memos",
+          "resource_type": "folder",
+          "tags": "Memos, Board, Resolutions",
+          "is_starred": 0
+        }
+      ]
+    },
+    {
+      "name": "Extension Services & Outreach",
+      "slug": "extension-services-outreach",
+      "icon": "bi-people-fill",
+      "color": "#059669",
+      "description": "Community extension programs, training workshops, MOU/MOA partners, and livelihood projects.",
+      "order_index": 2,
+      "cards": [
+        {
+          "title": "Community Extension Projects 2026",
+          "description": "Active community engagement folders, attendance sheets, and livelihood program resources.",
+          "drive_url": "https://drive.google.com/drive/folders/1_example_essu_extension",
+          "resource_type": "folder",
+          "tags": "Extension, Community, Projects",
+          "is_starred": 1
+        },
+        {
+          "title": "MOA / MOU Partner Organizations",
+          "description": "Signed memorandums of agreement with LGUs, NGOs, and regional partner agencies.",
+          "drive_url": "https://drive.google.com/drive/folders/1_example_essu_partners",
+          "resource_type": "folder",
+          "tags": "Partners, MOA, Agreements",
+          "is_starred": 0
+        }
+      ]
+    },
+    {
+      "name": "Research & Development",
+      "slug": "research-development",
+      "icon": "bi-mortarboard-fill",
+      "color": "#0284c7",
+      "description": "Faculty research publications, IP / patent filings, ethics clearances, and funding grants.",
+      "order_index": 3,
+      "cards": [
+        {
+          "title": "Institutional Research Database & Journals",
+          "description": "Published faculty research, citation repositories, and conference proceedings.",
+          "drive_url": "https://drive.google.com/drive/folders/1_example_essu_research",
+          "resource_type": "folder",
+          "tags": "Research, Journals, Publications",
+          "is_starred": 1
+        }
+      ]
+    },
+    {
+      "name": "Instruction & Academic Affairs",
+      "slug": "instruction-academics",
+      "icon": "bi-book-half",
+      "color": "#d97706",
+      "description": "Curriculum guides, syllabi, instructional modules, and accreditation documents.",
+      "order_index": 4,
+      "cards": [
+        {
+          "title": "Curriculum Modules & Approved Syllabi",
+          "description": "OBE course syllabi, departmental course outlines, and instructional materials.",
+          "drive_url": "https://drive.google.com/drive/folders/1_example_essu_syllabi",
+          "resource_type": "folder",
+          "tags": "Curriculum, Syllabi, OBE",
+          "is_starred": 0
+        }
+      ]
+    },
+    {
+      "name": "General Campus Drive & Shared Links",
+      "slug": "general-campus-drive",
+      "icon": "bi-hdd-network-fill",
+      "color": "#4f46e5",
+      "description": "Campus calendars, forms, templates, branding assets, and announcement graphics.",
+      "order_index": 5,
+      "cards": [
+        {
+          "title": "ESSU Official Branding & Media Assets",
+          "description": "High-resolution university logos, seal graphics, letterheads, and PowerPoint templates.",
+          "drive_url": "https://drive.google.com/drive/folders/1_example_essu_branding",
+          "resource_type": "folder",
+          "tags": "Branding, Seal, Templates",
+          "is_starred": 1
+        }
+      ]
+    }
+  ]
+}
