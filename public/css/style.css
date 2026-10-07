@@ -732,10 +732,35 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-  padding: 1.5rem;
   position: relative;
-  overflow: hidden;
+  padding: 1.5rem;
+  background-color: #0b1120;
+  overflow-x: hidden;
+}
+
+/* ESSU Campus Background Image with Controlled Opacity */
+.login-body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url('../images/essu_bg.jpg');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: 0.35; /* Soft opacity so it stays subtle and does not overpower the interface */
+  filter: brightness(0.88) contrast(1.05);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Soft Dark Vignette Overlay for Crisp Contrast */
+.login-body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.50) 0%, rgba(15, 23, 42, 0.85) 100%);
+  z-index: 1;
+  pointer-events: none;
 }
 
 .login-bg-glow {
@@ -743,19 +768,23 @@ body {
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(59, 130, 246, 0.05) 50%, transparent 70%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, rgba(59, 130, 246, 0.08) 50%, transparent 70%);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
+  z-index: 2;
 }
 
 .login-card {
   width: 100%;
   max-width: 440px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: var(--radius-xl);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5);
   padding: 2.5rem 2.25rem;
   position: relative;
   z-index: 10;
